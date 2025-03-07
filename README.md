@@ -1,6 +1,6 @@
-# Serial-Lib
+# SerialPort
 
-A modern JavaScript library for serial port communication in the browser using the Web Serial API.
+A modern JavaScript library for serial port communication in the browser using the Web Serial API. This library provides a simple and reliable way to interact with serial devices directly from your web applications.
 
 ## Features
 
@@ -13,19 +13,19 @@ A modern JavaScript library for serial port communication in the browser using t
 ## Installation
 
 ```bash
-npm install serial-lib
+npm install serialport
 ```
 
 ## Usage
 
 ```javascript
-import SerialLib from 'serial-lib';
+import SerialPort from 'serialport';
 
 // Create a new instance
-const serial = new SerialLib();
+const serial = new SerialPort();
 
 // Check if Web Serial API is supported
-if (!SerialLib.isSupported()) {
+if (!SerialPort.isSupported()) {
   console.error('Web Serial API is not supported in this browser');
 }
 
@@ -55,17 +55,17 @@ await serial.disconnect();
 
 ## API Reference
 
-### `SerialLib`
+### `SerialPort`
 
 #### Constructor
 
 ```javascript
-const serial = new SerialLib();
+const serial = new SerialPort();
 ```
 
 #### Static Methods
 
-- `SerialLib.isSupported()`: Returns boolean indicating if Web Serial API is supported
+- `SerialPort.isSupported()`: Returns boolean indicating if Web Serial API is supported
 
 #### Instance Methods
 
