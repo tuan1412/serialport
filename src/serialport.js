@@ -96,7 +96,7 @@ class SerialPort {
     }
 
     // Write command with newline if it doesn't have one
-    const commandToSend = command.endsWith('\n') ? command : command + '\n';
+    const commandToSend = command.endsWith('\r\n') ? command : command + '\r\n';
     await this.writer.write(commandToSend);
 
     try {
