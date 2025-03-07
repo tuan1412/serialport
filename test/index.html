@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SerialPort Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .config {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .config-item {
+            margin: 10px 0;
+        }
+        .config-item label {
+            display: inline-block;
+            width: 120px;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            margin-top: 10px;
+            height: 200px;
+            overflow-y: auto;
+        }
+        .response {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e9;
+            border-radius: 3px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        input {
+            padding: 5px;
+            margin: 5px;
+            width: 200px;
+        }
+        .help-text {
+            font-size: 0.8em;
+            color: #666;
+            margin-left: 125px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SerialPort Demo</h1>
+        
+        <div class="config">
+            <h3>Configuration</h3>
+            <div class="config-item">
+                <label for="terminators">Terminators:</label>
+                <input type="text" id="terminators" value="\r\n,\n">
+                <div class="help-text">Separate multiple terminators with comma. Use \r\n for CRLF, \n for LF</div>
+            </div>
+            <div class="config-item">
+                <label for="timeout">Timeout (ms):</label>
+                <input type="number" id="timeout" value="1000">
+                <div class="help-text">Default: 1000ms (1 second)</div>
+            </div>
+            <div class="config-item">
+                <label for="baudRate">Baud Rate:</label>
+                <input type="number" id="baudRate" value="9600">
+            </div>
+            <button id="applyConfig">Apply Configuration</button>
+        </div>
+
+        <div>
+            <button id="connectBtn">Connect</button>
+            <button id="disconnectBtn" disabled>Disconnect</button>
+        </div>
+        <div>
+            <input type="text" id="commandInput" placeholder="Enter command" disabled>
+            <button id="sendBtn" disabled>Send Command</button>
+        </div>
+        <div class="response" id="lastResponse" style="display: none;"></div>
+        <div class="log" id="log"></div>
+    </div>
+    <script src="/serialport.js"></script>
+    <script>
+        // Configuration elements
+        const terminatorsInput = document.getElementById('terminators');
+        const timeoutInput = document.getElementById('timeout');
+        const baudRateInput = document.getElementById('baudRate');
+        const applyConfigBtn = document.getElementById('applyConfig');
+
+        // Other UI elements
+        const log = document.getElementById('log');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const commandInput = document.getElementById('commandInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const lastResponse = document.getElementById('lastResponse');
+
+        // Parse terminators string into array
+        function parseTerminators(terminatorsStr) {
+            return terminatorsStr
+                .split(',')
+                .map(t => t.trim())
+                .map(t => t
+                    .replace('\\r\\n', '\r\n')
+                    .replace('\\n', '\n')
+                    .replace('\\r', '\r')
+                );
+        }
+
+        // Create serial instance with current configuration
+        function createSerialInstance() {
+            const terminators = parseTerminators(terminatorsInput.value);
+            const timeout = parseInt(timeoutInput.value);
+            
+            return new window.SerialPort({
+                terminators,
+                timeout
+            });
+        }
+
+        // Initialize serial instance
+        let serial = createSerialInstance();
+
+        function appendLog(message) {
+            const line = document.createElement('div');
+            line.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            log.appendChild(line);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function showResponse(response) {
+            lastResponse.textContent = `Last Response: ${response}`;
+            lastResponse.style.display = 'block';
+        }
+
+        // Apply configuration button handler
+        applyConfigBtn.addEventListener('click', () => {
+            if (connectBtn.disabled) {
+                appendLog('Cannot change configuration while connected. Please disconnect first.');
+                return;
+            }
+
+            try {
+                serial = createSerialInstance();
+                appendLog('Configuration updated');
+                appendLog(`Terminators: ${JSON.stringify(parseTerminators(terminatorsInput.value))}`);
+                appendLog(`Timeout: ${timeoutInput.value}ms`);
+            } catch (error) {
+                appendLog(`Error updating configuration: ${error.message}`);
+            }
+        });
+
+        connectBtn.addEventListener('click', async () => {
+            try {
+                const baudRate = parseInt(baudRateInput.value);
+                await serial.connect({ baudRate });
+                appendLog('Connected to serial port');
+                appendLog(`Baud Rate: ${baudRate}`);
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                commandInput.disabled = false;
+                sendBtn.disabled = false;
+                applyConfigBtn.disabled = true;
+            } catch (error) {
+                appendLog(`Error: ${error.message}`);
+            }
+        });
+
+        disconnectBtn.addEventListener('click', async () => {
+            try {
+                await serial.disconnect();
+                appendLog('Disconnected from serial port');
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                commandInput.disabled = true;
+                sendBtn.disabled = true;
+                lastResponse.style.display = 'none';
+                applyConfigBtn.disabled = false;
+            } catch (error) {
+                appendLog(`Error: ${error.message}`);
+            }
+        });
+
+        sendBtn.addEventListener('click', async () => {
+            const command = commandInput.value.trim();
+            if (!command) return;
+
+            try {
+                appendLog(`Sending command: ${command}`);
+                const result = await serial.writeAndWaitForOK(command);
+                if (result.success) {
+                    appendLog('Received OK in response');
+                } else if (result.response === 'Timeout') {
+                    appendLog('Timeout waiting for response');
+                }
+                showResponse(result.response);
+            } catch (error) {
+                appendLog(`Error: ${error.message}`);
+            }
+        });
+
+        // Check Web Serial API support
+        if (!window.SerialPort.isSupported()) {
+            appendLog('Web Serial API is not supported in this browser');
+            connectBtn.disabled = true;
+        }
+
+        // Initial configuration log
+        appendLog('Initial configuration:');
+        appendLog(`Terminators: ${JSON.stringify(parseTerminators(terminatorsInput.value))}`);
+        appendLog(`Timeout: ${timeoutInput.value}ms`);
+        appendLog(`Baud Rate: ${baudRateInput.value}`);
+    </script>
+</body>
+</html> 
